@@ -1,10 +1,11 @@
-// script.js - manage participants with Supabase shared storage
+// script.js - public registration form and admin participant list
 (function(){
   const SUPABASE_URL = 'https://mwtnmxndiztohyrsazuu.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_XlQscf-zNEDHg1ekBaYLRg_VIVCeCBN';
   const TABLE_NAME = 'participants';
 
   const form = document.getElementById('regForm');
+  const formStatusEl = document.getElementById('formStatus');
   const participantsListEl = document.getElementById('participantsList');
   const totalCountEl = document.getElementById('totalCount');
   const maleCountEl = document.getElementById('maleCount');
@@ -53,9 +54,31 @@
     };
   }
 
+  function escapeHtml(str){
+    return String(str||'')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
+  }
+
+  function showFormStatus(message, type){
+    if(!formStatusEl) return;
+    formStatusEl.textContent = message;
+    formStatusEl.className = 'status-message ' + (type || '');
+  }
+
+  function showListMessage(message){
+    if(!participantsListEl) return;
+    participantsListEl.innerHTML = '<p class="empty-message">' + escapeHtml(message) + '</p>';
+  }
+
   async function loadParticipants(){
+    if(!participantsListEl) return;
+
     if(!db){
-      showMessage('Add your Supabase URL and anon key in script.js first.');
+      showListMessage('Add your Supabase URL and publishable key in script.js first.');
       return;
     }
 
@@ -66,19 +89,17 @@
 
     if(error){
       console.error(error);
-      showMessage('Unable to load participants from Supabase: ' + (error.message || 'Unknown error'));
+      showListMessage('Unable to load participants from Supabase: ' + (error.message || 'Unknown error'));
       return;
     }
 
     participants = data.map(toAppParticipant);
-    renderParticipants(searchEl.value);
-  }
-
-  function showMessage(message){
-    participantsListEl.innerHTML = '<p class="empty-message">' + escapeHtml(message) + '</p>';
+    renderParticipants(searchEl ? searchEl.value : '');
   }
 
   function renderParticipants(filter){
+    if(!participantsListEl) return;
+
     const term = (filter||'').toLowerCase().trim();
     participantsListEl.innerHTML = '';
 
@@ -93,7 +114,7 @@
     });
 
     if(filtered.length === 0){
-      showMessage(term ? 'No matching participants found.' : 'No participants registered yet.');
+      showListMessage(term ? 'No matching participants found.' : 'No participants registered yet.');
     }
 
     filtered.forEach(p=>{
@@ -146,18 +167,9 @@
       participantsListEl.appendChild(card);
     });
 
-    totalCountEl.textContent = participants.length;
-    maleCountEl.textContent = male;
-    femaleCountEl.textContent = female;
-  }
-
-  function escapeHtml(str){
-    return String(str||'')
-      .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;')
-      .replace(/'/g,'&#039;');
+    if(totalCountEl) totalCountEl.textContent = participants.length;
+    if(maleCountEl) maleCountEl.textContent = male;
+    if(femaleCountEl) femaleCountEl.textContent = female;
   }
 
   async function removeParticipant(id){
@@ -175,18 +187,19 @@
     }
 
     participants = participants.filter(p=>p.id!==id);
-    renderParticipants(searchEl.value);
+    renderParticipants(searchEl ? searchEl.value : '');
   }
 
   async function addParticipantFromForm(data){
     if(!db){
-      alert('Add your Supabase URL and anon key in script.js first.');
+      showFormStatus('Unable to connect to registration database.', 'error');
       return;
     }
 
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
     submitButton.textContent = 'Saving...';
+    showFormStatus('', '');
 
     const { error } = await db
       .from(TABLE_NAME)
@@ -197,49 +210,49 @@
 
     if(error){
       console.error(error);
-      alert('Unable to save participant: ' + (error.message || 'Unknown error'));
+      showFormStatus('Unable to save registration: ' + (error.message || 'Unknown error'), 'error');
       return;
     }
 
     form.reset();
-    loadParticipants();
+    showFormStatus('You are registered successfully.', 'success');
   }
 
-  form.addEventListener('submit', function(e){
-    e.preventDefault();
-    const data = {
-      fullName: document.getElementById('fullName').value.trim(),
-      age: document.getElementById('age').value.trim(),
-      gender: document.getElementById('gender').value,
-      email: document.getElementById('email').value.trim(),
-      contact: document.getElementById('contact').value.trim(),
-      address: document.getElementById('address').value.trim(),
-      batch: document.getElementById('batch').value.trim(),
-      batchName: document.getElementById('batchName').value.trim(),
-      event: document.getElementById('event').value.trim()
-    };
+  function setupForm(){
+    if(!form) return;
 
-    const fileInput = document.getElementById('photo');
-    const file = fileInput.files && fileInput.files[0];
-
-    if(file){
-      const reader = new FileReader();
-      reader.onload = function(evt){
-        data.photoData = evt.target.result;
-        addParticipantFromForm(data);
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      const data = {
+        fullName: document.getElementById('fullName').value.trim(),
+        age: document.getElementById('age').value.trim(),
+        gender: document.getElementById('gender').value,
+        email: document.getElementById('email').value.trim(),
+        contact: document.getElementById('contact').value.trim(),
+        address: document.getElementById('address').value.trim(),
+        batch: document.getElementById('batch').value.trim(),
+        batchName: document.getElementById('batchName').value.trim(),
+        event: document.getElementById('event').value.trim()
       };
-      reader.readAsDataURL(file);
-    }else{
-      addParticipantFromForm(data);
-    }
-  });
 
-  searchEl.addEventListener('input', function(){
-    renderParticipants(this.value);
-  });
+      const fileInput = document.getElementById('photo');
+      const file = fileInput.files && fileInput.files[0];
+
+      if(file){
+        const reader = new FileReader();
+        reader.onload = function(evt){
+          data.photoData = evt.target.result;
+          addParticipantFromForm(data);
+        };
+        reader.readAsDataURL(file);
+      }else{
+        addParticipantFromForm(data);
+      }
+    });
+  }
 
   function subscribeToRealtime(){
-    if(!db) return;
+    if(!db || !participantsListEl) return;
 
     db.channel('participants-realtime')
       .on(
@@ -254,6 +267,14 @@
           console.error('Supabase realtime channel error');
         }
       });
+  }
+
+  setupForm();
+
+  if(searchEl){
+    searchEl.addEventListener('input', function(){
+      renderParticipants(this.value);
+    });
   }
 
   loadParticipants();
