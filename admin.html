@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Admin Participants List</title>
+		<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+		<header class="site-header">
+			<h1>Admin Participants List</h1>
+			<p>Manage registered participants</p>
+		</header>
+
+		<main class="container admin-container">
+			<section class="right">
+				<div class="card list-card">
+					<h2>Participants List</h2>
+					<div class="counters">
+						<div class="counter"><span id="totalCount">0</span><small>Total</small></div>
+						<div class="counter"><span id="maleCount">0</span><small>Male</small></div>
+						<div class="counter"><span id="femaleCount">0</span><small>Female</small></div>
+					</div>
+
+					<input id="search" placeholder="Search by name, event, batch, or email" />
+
+					<div id="participantsList" class="participants-list"></div>
+				</div>
+			</section>
+		</main>
+
+		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+		<script src="script.js?v=3"></script>
+	</body>
+</html>
