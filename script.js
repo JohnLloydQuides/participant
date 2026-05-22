@@ -1,7 +1,7 @@
 // script.js - manage participants with Supabase shared storage
 (function(){
   const SUPABASE_URL = 'https://mwtnmxndiztohyrsazuu.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_XlQscf-zNEDHg1ekBaYLRg_VIVCeCBN';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_XlQscf-zNEDHg1ekBaYLRg_VIVCeCBN';
   const TABLE_NAME = 'participants';
 
   const form = document.getElementById('regForm');
@@ -11,8 +11,8 @@
   const femaleCountEl = document.getElementById('femaleCount');
   const searchEl = document.getElementById('search');
 
-  const isConfigured = !SUPABASE_URL.includes('PASTE_') && !SUPABASE_ANON_KEY.includes('PASTE_');
-  const db = isConfigured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  const isConfigured = !SUPABASE_URL.includes('PASTE_') && !SUPABASE_PUBLISHABLE_KEY.includes('PASTE_');
+  const db = isConfigured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY) : null;
 
   let participants = [];
 
@@ -66,7 +66,7 @@
 
     if(error){
       console.error(error);
-      showMessage('Unable to load participants from Supabase.');
+      showMessage('Unable to load participants from Supabase: ' + (error.message || 'Unknown error'));
       return;
     }
 
@@ -170,7 +170,7 @@
 
     if(error){
       console.error(error);
-      alert('Unable to delete participant.');
+      alert('Unable to delete participant: ' + (error.message || 'Unknown error'));
       return;
     }
 
@@ -197,7 +197,7 @@
 
     if(error){
       console.error(error);
-      alert('Unable to save participant.');
+      alert('Unable to save participant: ' + (error.message || 'Unknown error'));
       return;
     }
 
