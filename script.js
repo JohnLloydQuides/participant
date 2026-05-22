@@ -1,5 +1,9 @@
-// script.js - manage participants with image upload and localStorage persistence
+// script.js - manage participants with Supabase shared storage
 (function(){
+  const SUPABASE_URL = 'https://mwtnmxndiztohyrsazuu.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_XlQscf-zNEDHg1ekBaYLRg_VIVCeCBN';
+  const TABLE_NAME = 'participants';
+
   const form = document.getElementById('regForm');
   const participantsListEl = document.getElementById('participantsList');
   const totalCountEl = document.getElementById('totalCount');
@@ -7,27 +11,71 @@
   const femaleCountEl = document.getElementById('femaleCount');
   const searchEl = document.getElementById('search');
 
-  const STORAGE_KEY = 'participants_v1';
+  const isConfigured = !SUPABASE_URL.includes('PASTE_') && !SUPABASE_ANON_KEY.includes('PASTE_');
+  const db = isConfigured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-  let participants = loadParticipants();
+  let participants = [];
 
-  function loadParticipants(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    }catch(e){
-      console.error('Failed to parse participants', e);
-      return [];
-    }
-  }
-
-  function saveParticipants(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(participants));
-  }
-
-  function formatDate(ts){
-    const d = new Date(ts);
+  function formatDate(value){
+    const d = new Date(value);
     return d.toLocaleString();
+  }
+
+  function toAppParticipant(row){
+    return {
+      id: row.id,
+      fullName: row.full_name,
+      age: row.age,
+      gender: row.gender,
+      email: row.email,
+      contact: row.contact,
+      address: row.address,
+      batch: row.batch,
+      batchName: row.batch_name,
+      event: row.event,
+      photoData: row.photo_data,
+      createdAt: row.created_at
+    };
+  }
+
+  function toDbParticipant(data){
+    return {
+      full_name: data.fullName,
+      age: data.age ? Number(data.age) : null,
+      gender: data.gender,
+      email: data.email,
+      contact: data.contact,
+      address: data.address,
+      batch: data.batch,
+      batch_name: data.batchName,
+      event: data.event,
+      photo_data: data.photoData || null
+    };
+  }
+
+  async function loadParticipants(){
+    if(!db){
+      showMessage('Add your Supabase URL and anon key in script.js first.');
+      return;
+    }
+
+    const { data, error } = await db
+      .from(TABLE_NAME)
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if(error){
+      console.error(error);
+      showMessage('Unable to load participants from Supabase.');
+      return;
+    }
+
+    participants = data.map(toAppParticipant);
+    renderParticipants(searchEl.value);
+  }
+
+  function showMessage(message){
+    participantsListEl.innerHTML = '<p class="empty-message">' + escapeHtml(message) + '</p>';
   }
 
   function renderParticipants(filter){
@@ -43,6 +91,10 @@
         || (p.batch||'').toLowerCase().includes(term)
         || (p.email||'').toLowerCase().includes(term);
     });
+
+    if(filtered.length === 0){
+      showMessage(term ? 'No matching participants found.' : 'No participants registered yet.');
+    }
 
     filtered.forEach(p=>{
       if(p.gender==='male') male++;
@@ -100,7 +152,7 @@
   }
 
   function escapeHtml(str){
-    return (str||'')
+    return String(str||'')
       .replace(/&/g,'&amp;')
       .replace(/</g,'&lt;')
       .replace(/>/g,'&gt;')
@@ -108,18 +160,49 @@
       .replace(/'/g,'&#039;');
   }
 
-  function removeParticipant(id){
+  async function removeParticipant(id){
+    if(!db) return;
+
+    const { error } = await db
+      .from(TABLE_NAME)
+      .delete()
+      .eq('id', id);
+
+    if(error){
+      console.error(error);
+      alert('Unable to delete participant.');
+      return;
+    }
+
     participants = participants.filter(p=>p.id!==id);
-    saveParticipants();
     renderParticipants(searchEl.value);
   }
 
-  function addParticipantFromForm(data){
-    const id = Date.now().toString();
-    const p = Object.assign({}, data, {id, createdAt: Date.now()});
-    participants.unshift(p);
-    saveParticipants();
-    renderParticipants(searchEl.value);
+  async function addParticipantFromForm(data){
+    if(!db){
+      alert('Add your Supabase URL and anon key in script.js first.');
+      return;
+    }
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Saving...';
+
+    const { error } = await db
+      .from(TABLE_NAME)
+      .insert(toDbParticipant(data));
+
+    submitButton.disabled = false;
+    submitButton.textContent = 'Register Participant';
+
+    if(error){
+      console.error(error);
+      alert('Unable to save participant.');
+      return;
+    }
+
+    form.reset();
+    loadParticipants();
   }
 
   form.addEventListener('submit', function(e){
@@ -144,12 +227,10 @@
       reader.onload = function(evt){
         data.photoData = evt.target.result;
         addParticipantFromForm(data);
-        form.reset();
       };
       reader.readAsDataURL(file);
     }else{
       addParticipantFromForm(data);
-      form.reset();
     }
   });
 
@@ -157,7 +238,5 @@
     renderParticipants(this.value);
   });
 
-  // initial render
-  renderParticipants();
-
+  loadParticipants();
 })();
