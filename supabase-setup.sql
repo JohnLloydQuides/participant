@@ -18,6 +18,13 @@ alter table public.participants enable row level security;
 grant usage on schema public to anon;
 grant select, insert, delete on table public.participants to anon;
 
+do $$
+begin
+  alter publication supabase_realtime add table public.participants;
+exception
+  when duplicate_object then null;
+end $$;
+
 drop policy if exists "Public can read participants" on public.participants;
 create policy "Public can read participants"
 on public.participants
