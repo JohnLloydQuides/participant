@@ -238,5 +238,24 @@
     renderParticipants(this.value);
   });
 
+  function subscribeToRealtime(){
+    if(!db) return;
+
+    db.channel('participants-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: TABLE_NAME },
+        function(){
+          loadParticipants();
+        }
+      )
+      .subscribe(function(status){
+        if(status === 'CHANNEL_ERROR'){
+          console.error('Supabase realtime channel error');
+        }
+      });
+  }
+
   loadParticipants();
+  subscribeToRealtime();
 })();
