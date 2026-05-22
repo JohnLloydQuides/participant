@@ -15,6 +15,9 @@ create table if not exists public.participants (
 
 alter table public.participants enable row level security;
 
+grant usage on schema public to anon;
+grant select, insert, delete on table public.participants to anon;
+
 drop policy if exists "Public can read participants" on public.participants;
 create policy "Public can read participants"
 on public.participants
