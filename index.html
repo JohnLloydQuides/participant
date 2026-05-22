@@ -12,10 +12,11 @@
 			<p>Register and manage participants for events and workshops</p>
 		</header>
 
-		<main class="container">
+		<main class="container form-only">
 			<section class="left">
 				<div class="card form-card">
 					<h2>Registration Form</h2>
+					<div id="formStatus" class="status-message" aria-live="polite"></div>
 					<form id="regForm">
 						<label>Full Name *
 							<input type="text" id="fullName" required placeholder="Enter full name" />
@@ -69,23 +70,9 @@
 				</div>
 			</section>
 
-			<section class="right">
-				<div class="card list-card">
-					<h2>Participants List</h2>
-					<div class="counters">
-						<div class="counter"><span id="totalCount">0</span><small>Total</small></div>
-						<div class="counter"><span id="maleCount">0</span><small>Male</small></div>
-						<div class="counter"><span id="femaleCount">0</span><small>Female</small></div>
-					</div>
-
-					<input id="search" placeholder="Search by name, event, batch, or email" />
-
-					<div id="participantsList" class="participants-list"></div>
-				</div>
-			</section>
 		</main>
 
 		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-		<script src="script.js?v=2"></script>
+		<script src="script.js?v=3"></script>
 	</body>
 </html>
