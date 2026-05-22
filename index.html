@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>KKDAT Participant Registration System</title>
+		<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+		<header class="site-header">
+			<h1>KKDAT Participant Registration System</h1>
+			<p>Register and manage participants for events and workshops</p>
+		</header>
+
+		<main class="container">
+			<section class="left">
+				<div class="card form-card">
+					<h2>Registration Form</h2>
+					<form id="regForm">
+						<label>Full Name *
+							<input type="text" id="fullName" required placeholder="Enter full name" />
+						</label>
+
+						<div class="row">
+							<label>Age *
+								<input type="number" id="age" required placeholder="Age" />
+							</label>
+							<label>Gender *
+								<select id="gender" required>
+									<option value="">Select gender</option>
+									<option value="male">Male</option>
+									<option value="female">Female</option>
+									<option value="other">Other</option>
+								</select>
+							</label>
+						</div>
+
+						<label>Email *
+							<input type="email" id="email" required placeholder="Enter email address" />
+						</label>
+
+						<label>Contact Number *
+							<input type="text" id="contact" required placeholder="Enter contact number" />
+						</label>
+
+						<label>Address *
+							<textarea id="address" required placeholder="Enter complete address"></textarea>
+						</label>
+
+						<div class="row">
+							<label>Batch *
+								<input type="text" id="batch" required placeholder="Example: 2026" />
+							</label>
+							<label>Batch Name *
+								<input type="text" id="batchName" required placeholder="Example: Morning Batch" />
+							</label>
+						</div>
+
+						<label>Event *
+							<input type="text" id="event" required placeholder="Enter event name" />
+						</label>
+
+						<label>2x2 Photo (optional)
+							<input type="file" id="photo" accept="image/*" />
+						</label>
+
+						<button type="submit" class="btn-primary">Register Participant</button>
+					</form>
+				</div>
+			</section>
+
+			<section class="right">
+				<div class="card list-card">
+					<h2>Participants List</h2>
+					<div class="counters">
+						<div class="counter"><span id="totalCount">0</span><small>Total</small></div>
+						<div class="counter"><span id="maleCount">0</span><small>Male</small></div>
+						<div class="counter"><span id="femaleCount">0</span><small>Female</small></div>
+					</div>
+
+					<input id="search" placeholder="Search by name, event, batch, or email" />
+
+					<div id="participantsList" class="participants-list"></div>
+				</div>
+			</section>
+		</main>
+
+		<script src="script.js"></script>
+	</body>
+</html>

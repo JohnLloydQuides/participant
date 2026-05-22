@@ -1,0 +1,74 @@
+/* Basic reset + layout */
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:#eef7ff;margin:0;color:#0b2545}
+.site-header{text-align:center;padding:28px 12px 8px}
+.site-header h1{margin:0;color:#0b4da2;font-size:clamp(24px,4vw,34px)}
+.site-header p{margin:6px 0 0;color:#6b7785}
+
+.container{display:flex;gap:24px;padding:24px;max-width:1200px;margin:0 auto}
+.left{flex:1}
+.right{flex:1}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 6px 18px rgba(10,30,60,0.06)}
+.form-card h2,.list-card h2{margin:0 0 12px;color:#1a3d6f}
+
+form label{display:block;margin-bottom:12px;font-size:14px;color:#244}
+input[type=text],input[type=email],input[type=number],select,textarea,input[type=file],#search{
+	width:100%;padding:10px;border:1px solid #e0e6ee;border-radius:8px;background:#fff}
+textarea{min-height:80px}
+.row{display:flex;gap:12px}
+.row label{flex:1}
+
+.btn-primary{display:inline-block;background:#2e7bff;color:#fff;padding:12px 18px;border-radius:8px;border:0;cursor:pointer;margin-top:8px;width:100%}
+
+.counters{display:flex;gap:12px;margin-bottom:12px}
+.counter{flex:1;background:linear-gradient(180deg,#2e7bff,#1f63d6);color:#fff;padding:16px;border-radius:10px;text-align:center}
+.counter span{display:block;font-size:28px;font-weight:700}
+.counter small{opacity:0.9}
+
+.participants-list{margin-top:12px}
+.participant-card{display:flex;align-items:flex-start;gap:16px;padding:14px;border:1px solid #eef2f6;border-radius:8px;margin-bottom:12px;position:relative}
+.participant-info{flex:1}
+.participant-name{font-weight:700;color:#1b3b6a;margin-bottom:6px}
+.participant-meta{font-size:13px;color:#5b6b7a;overflow-wrap:anywhere}
+.participant-actions{order:3;flex:0 0 auto}
+.btn-delete{background:#ff6b6b;color:#fff;border:0;padding:6px 10px;border-radius:6px;cursor:pointer}
+
+.participant-photo{order:2;width:120px;height:120px;border-radius:8px;object-fit:cover;border:1px solid #e6eef6}
+
+@media(max-width:880px){
+	.container{flex-direction:column}
+	.row{flex-direction:column}
+}
+
+@media(max-width:600px){
+	body{background:#f6fbff}
+	.site-header{padding:20px 16px 6px}
+	.site-header p{font-size:14px}
+	.container{gap:16px;padding:16px}
+	.card{border-radius:10px;padding:16px}
+	.form-card h2,.list-card h2{font-size:20px}
+	.counters{gap:8px}
+	.counter{padding:12px 8px;border-radius:8px}
+	.counter span{font-size:22px}
+	input[type=text],input[type=email],input[type=number],select,textarea,input[type=file],#search{
+		font-size:16px;
+		padding:11px;
+	}
+	.participant-card{
+		display:grid;
+		grid-template-columns:1fr;
+		gap:12px;
+		padding:14px;
+	}
+	.participant-actions{
+		position:static;
+		order:3;
+	}
+	.btn-delete{width:100%;padding:10px}
+	.participant-photo{
+		order:-1;
+		width:100%;
+		height:auto;
+		aspect-ratio:16/10;
+	}
+}
