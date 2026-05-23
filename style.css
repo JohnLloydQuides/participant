@@ -25,6 +25,11 @@ textarea{min-height:80px}
 .status-message{display:none;margin:0 0 14px;padding:11px 12px;border-radius:8px;font-size:14px}
 .status-message.success{display:block;background:#e9f9ef;color:#176b34;border:1px solid #bde8c9}
 .status-message.error{display:block;background:#fff0f0;color:#a32b2b;border:1px solid #ffd0d0}
+.done-registered{text-align:center;padding:28px 8px 8px}
+.done-registered[hidden]{display:none}
+.done-icon{display:grid;place-items:center;width:72px;height:72px;margin:0 auto 16px;border-radius:50%;background:#e9f9ef;color:#176b34;border:1px solid #bde8c9;font-size:42px;font-weight:800;line-height:1}
+.done-registered h2{margin:0;color:#176b34;font-size:clamp(24px,4vw,32px)}
+.done-registered p{margin:8px 0 18px;color:#5b6b7a}
 
 .counters{display:flex;gap:12px;margin-bottom:12px}
 .counter{flex:1;background:linear-gradient(180deg,#2e7bff,#1f63d6);color:#fff;padding:16px;border-radius:10px;text-align:center}
