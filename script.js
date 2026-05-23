@@ -32,6 +32,7 @@
       gender: row.gender,
       email: row.email,
       contact: row.contact,
+      emergencyContact: row.emergency_contact,
       address: row.address,
       batch: row.batch,
       batchName: row.batch_name,
@@ -48,9 +49,10 @@
       gender: data.gender,
       email: data.email,
       contact: data.contact,
+      emergency_contact: data.emergencyContact,
       address: data.address,
       batch: data.batch,
-      batch_name: data.batchName,
+      batch_name: data.batchName || '',
       event: data.event,
       photo_data: data.photoData || null
     };
@@ -154,6 +156,7 @@
       meta.innerHTML = `
         <div>Email: ${escapeHtml(p.email||'')}</div>
         <div>Contact: ${escapeHtml(p.contact||'')}</div>
+        <div>Emergency Contact: ${escapeHtml(p.emergencyContact||'')}</div>
         <div>Gender: ${escapeHtml(p.gender||'')}</div>
         <div>Event: ${escapeHtml(p.event||'')}</div>
         <div>Batch: ${escapeHtml(p.batchName? p.batch + ' - ' + p.batchName : p.batch||'')}</div>
@@ -247,6 +250,7 @@
         gender: document.getElementById('gender').value,
         email: document.getElementById('email').value.trim(),
         contact: document.getElementById('contact').value.trim(),
+        emergencyContact: document.getElementById('emergencyContact').value.trim(),
         address: document.getElementById('address').value.trim(),
         batch: document.getElementById('batch').value.trim(),
         batchName: document.getElementById('batchName').value.trim(),
