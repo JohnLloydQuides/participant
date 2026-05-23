@@ -5,13 +5,27 @@ create table if not exists public.participants (
   gender text not null,
   email text not null,
   contact text not null,
+  emergency_contact text not null,
   address text not null,
   batch text not null,
-  batch_name text not null,
+  batch_name text,
   event text not null,
   photo_data text,
   created_at timestamptz not null default now()
 );
+
+alter table public.participants
+  alter column batch_name drop not null;
+
+alter table public.participants
+  add column if not exists emergency_contact text;
+
+update public.participants
+set emergency_contact = ''
+where emergency_contact is null;
+
+alter table public.participants
+  alter column emergency_contact set not null;
 
 alter table public.participants enable row level security;
 
