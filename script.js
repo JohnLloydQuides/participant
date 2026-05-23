@@ -6,6 +6,8 @@
 
   const form = document.getElementById('regForm');
   const formStatusEl = document.getElementById('formStatus');
+  const doneRegisteredEl = document.getElementById('doneRegistered');
+  const registerAnotherEl = document.getElementById('registerAnother');
   const participantsListEl = document.getElementById('participantsList');
   const totalCountEl = document.getElementById('totalCount');
   const maleCountEl = document.getElementById('maleCount');
@@ -67,6 +69,22 @@
     if(!formStatusEl) return;
     formStatusEl.textContent = message;
     formStatusEl.className = 'status-message ' + (type || '');
+  }
+
+  function showDoneRegistered(){
+    if(!form || !doneRegisteredEl) return;
+    form.hidden = true;
+    doneRegisteredEl.hidden = false;
+    showFormStatus('', '');
+  }
+
+  function showRegistrationForm(){
+    if(!form || !doneRegisteredEl) return;
+    doneRegisteredEl.hidden = true;
+    form.hidden = false;
+    showFormStatus('', '');
+    const firstInput = document.getElementById('fullName');
+    if(firstInput) firstInput.focus();
   }
 
   function showListMessage(message){
@@ -215,7 +233,7 @@
     }
 
     form.reset();
-    showFormStatus('You are registered successfully.', 'success');
+    showDoneRegistered();
   }
 
   function setupForm(){
@@ -275,6 +293,10 @@
     searchEl.addEventListener('input', function(){
       renderParticipants(this.value);
     });
+  }
+
+  if(registerAnotherEl){
+    registerAnotherEl.addEventListener('click', showRegistrationForm);
   }
 
   loadParticipants();
