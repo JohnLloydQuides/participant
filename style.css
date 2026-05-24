@@ -54,7 +54,8 @@ textarea{min-height:80px}
 .edit-actions{display:flex;gap:10px;align-items:center}
 .edit-actions .btn-primary,.edit-actions .btn-secondary{width:auto;margin-top:0;padding:10px 14px}
 
-.participant-photo{order:2;width:120px;height:120px;border-radius:8px;object-fit:cover;border:1px solid #e6eef6}
+.participant-photo{order:2;min-width:120px;min-height:120px;max-width:120px;border-radius:8px;border:1px solid #e6eef6;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fbff;color:#6b7785;text-align:center;padding:8px}
+.participant-photo img{display:block;width:100%;height:auto;border-radius:8px}
 
 @media(max-width:880px){
 	.container{flex-direction:column}
