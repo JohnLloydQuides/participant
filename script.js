@@ -18,6 +18,21 @@
   const db = isConfigured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY) : null;
 
   let participants = [];
+  const photoCache = new Map();
+  const PARTICIPANT_LIST_COLUMNS = [
+    'id',
+    'full_name',
+    'age',
+    'gender',
+    'email',
+    'contact',
+    'address',
+    'batch',
+    'batch_name',
+    'event',
+    'created_at'
+  ].join(',');
+  const PARTICIPANT_LIST_LIMIT = 100;
 
   function formatDate(value){
     const d = new Date(value);
@@ -59,6 +74,62 @@
     }
 
     return row;
+  }
+
+  function createParticipantPhotoSlot(){
+    const slot = document.createElement('div');
+    slot.className = 'participant-photo participant-photo-placeholder';
+    slot.textContent = 'Loading photo';
+    return slot;
+  }
+
+  function showParticipantPhoto(slot, photoData, fullName){
+    if(!slot) return;
+
+    slot.textContent = '';
+
+    if(!photoData){
+      slot.className = 'participant-photo participant-photo-placeholder';
+      slot.textContent = 'No photo';
+      return;
+    }
+
+    const img = document.createElement('img');
+    slot.className = 'participant-photo participant-photo-frame';
+    img.src = photoData;
+    img.alt = fullName ? fullName + ' 2x2 photo' : 'Participant 2x2 photo';
+    img.loading = 'lazy';
+    slot.appendChild(img);
+  }
+
+  async function loadParticipantPhoto(participant, slot){
+    if(!db || !participant || !participant.id) return;
+
+    if(participant.photoData){
+      showParticipantPhoto(slot, participant.photoData, participant.fullName);
+      return;
+    }
+
+    if(photoCache.has(participant.id)){
+      showParticipantPhoto(slot, photoCache.get(participant.id), participant.fullName);
+      return;
+    }
+
+    const { data, error } = await db
+      .from(TABLE_NAME)
+      .select('photo_data')
+      .eq('id', participant.id)
+      .maybeSingle();
+
+    if(error){
+      console.error('Unable to load participant photo:', error);
+      showParticipantPhoto(slot, '', participant.fullName);
+      return;
+    }
+
+    const photoData = data && data.photo_data ? data.photo_data : '';
+    photoCache.set(participant.id, photoData);
+    showParticipantPhoto(slot, photoData, participant.fullName);
   }
 
   function needsLegacyEmergencyContactValue(error){
@@ -119,8 +190,9 @@
 
     const { data, error } = await db
       .from(TABLE_NAME)
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select(PARTICIPANT_LIST_COLUMNS)
+      .order('created_at', { ascending: false })
+      .limit(PARTICIPANT_LIST_LIMIT);
 
     if(error){
       console.error(error);
@@ -200,14 +272,10 @@
       card.appendChild(info);
       card.appendChild(actions);
 
-      if(p.photoData){
-        const img = document.createElement('img');
-        img.className = 'participant-photo';
-        img.src = p.photoData;
-        card.appendChild(img);
-      }
-
+      const photoSlot = createParticipantPhotoSlot();
+      card.appendChild(photoSlot);
       participantsListEl.appendChild(card);
+      loadParticipantPhoto(p, photoSlot);
     });
 
     if(totalCountEl) totalCountEl.textContent = participants.length;
@@ -257,6 +325,9 @@
         <label>Event *
           <input type="text" id="editEvent" required value="${escapeHtml(participant.event||'')}" />
         </label>
+        <label>Replace 2x2 Photo
+          <input type="file" id="editPhoto" accept="image/*" />
+        </label>
         <div class="edit-actions">
           <button type="submit" class="btn-primary">Save Changes</button>
           <button type="button" id="cancelEdit" class="btn-secondary">Cancel</button>
@@ -273,7 +344,7 @@
 
     editForm.addEventListener('submit', function(e){
       e.preventDefault();
-      updateParticipant(participant.id, {
+      const data = {
         fullName: document.getElementById('editFullName').value.trim(),
         age: document.getElementById('editAge').value.trim(),
         gender: document.getElementById('editGender').value,
@@ -283,7 +354,21 @@
         batch: document.getElementById('editBatch').value.trim(),
         batchName: document.getElementById('editBatchName').value.trim(),
         event: document.getElementById('editEvent').value.trim()
-      });
+      };
+
+      const fileInput = document.getElementById('editPhoto');
+      const file = fileInput.files && fileInput.files[0];
+
+      if(file){
+        const reader = new FileReader();
+        reader.onload = function(evt){
+          data.photoData = evt.target.result;
+          updateParticipant(participant.id, data);
+        };
+        reader.readAsDataURL(file);
+      }else{
+        updateParticipant(participant.id, data);
+      }
     });
   }
 
@@ -323,6 +408,9 @@
     }
 
     participants = participants.map(p=>p.id === id ? { ...p, ...data } : p);
+    if(Object.prototype.hasOwnProperty.call(data, 'photoData')){
+      photoCache.set(id, data.photoData || '');
+    }
     renderParticipants(searchEl ? searchEl.value : '');
   }
 
@@ -400,16 +488,18 @@
       const fileInput = document.getElementById('photo');
       const file = fileInput.files && fileInput.files[0];
 
-      if(file){
-        const reader = new FileReader();
-        reader.onload = function(evt){
-          data.photoData = evt.target.result;
-          addParticipantFromForm(data);
-        };
-        reader.readAsDataURL(file);
-      }else{
-        addParticipantFromForm(data);
+      if(!file){
+        showFormStatus('Please upload a 2x2 photo before registering.', 'error');
+        fileInput.focus();
+        return;
       }
+
+      const reader = new FileReader();
+      reader.onload = function(evt){
+        data.photoData = evt.target.result;
+        addParticipantFromForm(data);
+      };
+      reader.readAsDataURL(file);
     });
   }
 
