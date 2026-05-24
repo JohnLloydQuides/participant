@@ -27,10 +27,12 @@ where emergency_contact is null;
 alter table public.participants
   alter column emergency_contact set not null;
 
+notify pgrst, 'reload schema';
+
 alter table public.participants enable row level security;
 
 grant usage on schema public to anon;
-grant select, insert, delete on table public.participants to anon;
+grant select, insert, update, delete on table public.participants to anon;
 
 do $$
 begin
@@ -59,3 +61,11 @@ on public.participants
 for delete
 to anon
 using (true);
+
+drop policy if exists "Public can update participants" on public.participants;
+create policy "Public can update participants"
+on public.participants
+for update
+to anon
+using (true)
+with check (true);
