@@ -1,71 +1,35 @@
-create table if not exists public.participants (
-  id uuid primary key default gen_random_uuid(),
-  full_name text not null,
-  age integer not null,
-  gender text not null,
-  email text not null,
-  contact text not null,
-  emergency_contact text not null,
-  address text not null,
-  batch text not null,
-  batch_name text,
-  event text not null,
-  photo_data text,
-  created_at timestamptz not null default now()
-);
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Admin Participants List</title>
+		<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+		<header class="site-header">
+			<h1>Participants List</h1>
+			<p>Manage registered participants</p>
+		</header>
 
-alter table public.participants
-  alter column batch_name drop not null;
+		<main class="container admin-container">
+			<section class="right">
+				<div class="card list-card">
+					<h2>Participants List</h2>
+					<div class="counters">
+						<div class="counter"><span id="totalCount">0</span><small>Total</small></div>
+						<div class="counter"><span id="maleCount">0</span><small>Male</small></div>
+						<div class="counter"><span id="femaleCount">0</span><small>Female</small></div>
+					</div>
 
-alter table public.participants
-  add column if not exists emergency_contact text;
+					<input id="search" placeholder="Search by name, event, batch, email, or contact" />
 
-update public.participants
-set emergency_contact = ''
-where emergency_contact is null;
+					<div id="participantsList" class="participants-list"></div>
+				</div>
+			</section>
+		</main>
 
-alter table public.participants
-  alter column emergency_contact set not null;
-
-notify pgrst, 'reload schema';
-
-alter table public.participants enable row level security;
-
-grant usage on schema public to anon;
-grant select, insert, update, delete on table public.participants to anon;
-
-do $$
-begin
-  alter publication supabase_realtime add table public.participants;
-exception
-  when duplicate_object then null;
-end $$;
-
-drop policy if exists "Public can read participants" on public.participants;
-create policy "Public can read participants"
-on public.participants
-for select
-to anon
-using (true);
-
-drop policy if exists "Public can add participants" on public.participants;
-create policy "Public can add participants"
-on public.participants
-for insert
-to anon
-with check (true);
-
-drop policy if exists "Public can delete participants" on public.participants;
-create policy "Public can delete participants"
-on public.participants
-for delete
-to anon
-using (true);
-
-drop policy if exists "Public can update participants" on public.participants;
-create policy "Public can update participants"
-on public.participants
-for update
-to anon
-using (true)
-with check (true);
+		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+		<script src="script.js?v=10"></script>
+	</body>
+</html>
