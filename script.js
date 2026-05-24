@@ -61,6 +61,18 @@
     return row;
   }
 
+  function needsLegacyEmergencyContactValue(error){
+    return Boolean(
+      error
+      && /emergency_contact/i.test(error.message || '')
+      && /null value|not-null|null/i.test(error.message || '')
+    );
+  }
+
+  function withLegacyEmergencyContact(row){
+    return { ...row, emergency_contact: '' };
+  }
+
   function escapeHtml(str){
     return String(str||'')
       .replace(/&/g,'&amp;')
@@ -286,10 +298,19 @@
       submitButton.textContent = 'Saving...';
     }
 
-    const { error } = await db
+    const row = toDbParticipant(data);
+    let { error } = await db
       .from(TABLE_NAME)
-      .update(toDbParticipant(data))
+      .update(row)
       .eq('id', id);
+
+    if(needsLegacyEmergencyContactValue(error)){
+      const fallback = await db
+        .from(TABLE_NAME)
+        .update(withLegacyEmergencyContact(row))
+        .eq('id', id);
+      error = fallback.error;
+    }
 
     if(error){
       console.error(error);
@@ -334,9 +355,17 @@
     submitButton.textContent = 'Saving...';
     showFormStatus('', '');
 
-    const { error } = await db
+    const row = toDbParticipant(data);
+    let { error } = await db
       .from(TABLE_NAME)
-      .insert(toDbParticipant(data));
+      .insert(row);
+
+    if(needsLegacyEmergencyContactValue(error)){
+      const fallback = await db
+        .from(TABLE_NAME)
+        .insert(withLegacyEmergencyContact(row));
+      error = fallback.error;
+    }
 
     submitButton.disabled = false;
     submitButton.textContent = 'Register Participant';
