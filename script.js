@@ -39,6 +39,40 @@
     return d.toLocaleString();
   }
 
+  function normalizePhotoData(photoData){
+    if(!photoData) return '';
+    let src = String(photoData).trim();
+    if(!src) return '';
+
+    if(src.startsWith('data:')){
+      const commaIndex = src.indexOf(',');
+      if(commaIndex < 0) return src;
+      const prefix = src.slice(0, commaIndex + 1);
+      const payload = src.slice(commaIndex + 1).replace(/\s+/g, '');
+      return prefix + payload;
+    }
+
+    if(/^https?:\/\//i.test(src) || src.startsWith('/')){
+      return src;
+    }
+
+    const cleaned = src.replace(/\s+/g, '');
+    if(!/^[A-Za-z0-9+/=]+$/.test(cleaned)){
+      return src;
+    }
+
+    let mime = 'image/jpeg';
+    if(cleaned.startsWith('iVBORw0KGgo')){
+      mime = 'image/png';
+    } else if(cleaned.startsWith('R0lGOD')){
+      mime = 'image/gif';
+    } else if(cleaned.startsWith('UklGR') || cleaned.startsWith('RIFF')){
+      mime = 'image/webp';
+    }
+
+    return `data:${mime};base64,${cleaned}`;
+  }
+
   function toAppParticipant(row){
     return {
       id: row.id,
@@ -96,9 +130,13 @@
 
     const img = document.createElement('img');
     slot.className = 'participant-photo participant-photo-frame';
-    img.src = photoData;
+    img.src = normalizePhotoData(photoData);
     img.alt = fullName ? fullName + ' 2x2 photo' : 'Participant 2x2 photo';
     img.loading = 'lazy';
+    img.onerror = function(){
+      slot.className = 'participant-photo participant-photo-placeholder';
+      slot.textContent = 'Invalid photo';
+    };
     slot.appendChild(img);
   }
 
