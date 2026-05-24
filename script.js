@@ -32,7 +32,6 @@
       gender: row.gender,
       email: row.email,
       contact: row.contact,
-      emergencyContact: row.emergency_contact,
       address: row.address,
       batch: row.batch,
       batchName: row.batch_name,
@@ -43,19 +42,23 @@
   }
 
   function toDbParticipant(data){
-    return {
+    const row = {
       full_name: data.fullName,
       age: data.age ? Number(data.age) : null,
       gender: data.gender,
       email: data.email,
       contact: data.contact,
-      emergency_contact: data.emergencyContact,
       address: data.address,
       batch: data.batch,
       batch_name: data.batchName || '',
-      event: data.event,
-      photo_data: data.photoData || null
+      event: data.event
     };
+
+    if(Object.prototype.hasOwnProperty.call(data, 'photoData')){
+      row.photo_data = data.photoData || null;
+    }
+
+    return row;
   }
 
   function escapeHtml(str){
@@ -130,7 +133,8 @@
       return (p.fullName||'').toLowerCase().includes(term)
         || (p.event||'').toLowerCase().includes(term)
         || (p.batch||'').toLowerCase().includes(term)
-        || (p.email||'').toLowerCase().includes(term);
+        || (p.email||'').toLowerCase().includes(term)
+        || (p.contact||'').toLowerCase().includes(term);
     });
 
     if(filtered.length === 0){
@@ -156,7 +160,6 @@
       meta.innerHTML = `
         <div>Email: ${escapeHtml(p.email||'')}</div>
         <div>Contact: ${escapeHtml(p.contact||'')}</div>
-        <div>Emergency Contact: ${escapeHtml(p.emergencyContact||'')}</div>
         <div>Gender: ${escapeHtml(p.gender||'')}</div>
         <div>Event: ${escapeHtml(p.event||'')}</div>
         <div>Batch: ${escapeHtml(p.batchName? p.batch + ' - ' + p.batchName : p.batch||'')}</div>
@@ -169,10 +172,17 @@
 
       const actions = document.createElement('div');
       actions.className = 'participant-actions';
+      const edit = document.createElement('button');
+      edit.className = 'btn-edit';
+      edit.type = 'button';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', ()=>showEditForm(p));
       const del = document.createElement('button');
       del.className = 'btn-delete';
+      del.type = 'button';
       del.textContent = 'Delete';
       del.addEventListener('click', ()=>{ if(confirm('Delete this participant?')) removeParticipant(p.id); });
+      actions.appendChild(edit);
       actions.appendChild(del);
 
       card.appendChild(info);
@@ -191,6 +201,108 @@
     if(totalCountEl) totalCountEl.textContent = participants.length;
     if(maleCountEl) maleCountEl.textContent = male;
     if(femaleCountEl) femaleCountEl.textContent = female;
+  }
+
+  function showEditForm(participant){
+    if(!participantsListEl) return;
+
+    participantsListEl.innerHTML = `
+      <form id="editParticipantForm" class="edit-form">
+        <h3>Edit Participant</h3>
+        <label>Full Name *
+          <input type="text" id="editFullName" required value="${escapeHtml(participant.fullName||'')}" />
+        </label>
+        <div class="row">
+          <label>Age *
+            <input type="number" id="editAge" required value="${escapeHtml(participant.age||'')}" />
+          </label>
+          <label>Gender *
+            <select id="editGender" required>
+              <option value="">Select gender</option>
+              <option value="male"${participant.gender === 'male' ? ' selected' : ''}>Male</option>
+              <option value="female"${participant.gender === 'female' ? ' selected' : ''}>Female</option>
+              <option value="other"${participant.gender === 'other' ? ' selected' : ''}>Other</option>
+            </select>
+          </label>
+        </div>
+        <label>Email *
+          <input type="email" id="editEmail" required value="${escapeHtml(participant.email||'')}" />
+        </label>
+        <label>Contact Number *
+          <input type="tel" id="editContact" required value="${escapeHtml(participant.contact||'')}" autocomplete="tel" />
+        </label>
+        <label>Address *
+          <textarea id="editAddress" required>${escapeHtml(participant.address||'')}</textarea>
+        </label>
+        <div class="row">
+          <label>Batch *
+            <input type="text" id="editBatch" required value="${escapeHtml(participant.batch||'')}" />
+          </label>
+          <label>Batch Name
+            <input type="text" id="editBatchName" value="${escapeHtml(participant.batchName||'')}" />
+          </label>
+        </div>
+        <label>Event *
+          <input type="text" id="editEvent" required value="${escapeHtml(participant.event||'')}" />
+        </label>
+        <div class="edit-actions">
+          <button type="submit" class="btn-primary">Save Changes</button>
+          <button type="button" id="cancelEdit" class="btn-secondary">Cancel</button>
+        </div>
+      </form>
+    `;
+
+    const editForm = document.getElementById('editParticipantForm');
+    const cancelEdit = document.getElementById('cancelEdit');
+
+    cancelEdit.addEventListener('click', ()=>{
+      renderParticipants(searchEl ? searchEl.value : '');
+    });
+
+    editForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      updateParticipant(participant.id, {
+        fullName: document.getElementById('editFullName').value.trim(),
+        age: document.getElementById('editAge').value.trim(),
+        gender: document.getElementById('editGender').value,
+        email: document.getElementById('editEmail').value.trim(),
+        contact: document.getElementById('editContact').value.trim(),
+        address: document.getElementById('editAddress').value.trim(),
+        batch: document.getElementById('editBatch').value.trim(),
+        batchName: document.getElementById('editBatchName').value.trim(),
+        event: document.getElementById('editEvent').value.trim()
+      });
+    });
+  }
+
+  async function updateParticipant(id, data){
+    if(!db) return;
+
+    const editForm = document.getElementById('editParticipantForm');
+    const submitButton = editForm ? editForm.querySelector('button[type="submit"]') : null;
+
+    if(submitButton){
+      submitButton.disabled = true;
+      submitButton.textContent = 'Saving...';
+    }
+
+    const { error } = await db
+      .from(TABLE_NAME)
+      .update(toDbParticipant(data))
+      .eq('id', id);
+
+    if(error){
+      console.error(error);
+      alert('Unable to update participant: ' + (error.message || 'Unknown error'));
+      if(submitButton){
+        submitButton.disabled = false;
+        submitButton.textContent = 'Save Changes';
+      }
+      return;
+    }
+
+    participants = participants.map(p=>p.id === id ? { ...p, ...data } : p);
+    renderParticipants(searchEl ? searchEl.value : '');
   }
 
   async function removeParticipant(id){
@@ -250,7 +362,6 @@
         gender: document.getElementById('gender').value,
         email: document.getElementById('email').value.trim(),
         contact: document.getElementById('contact').value.trim(),
-        emergencyContact: document.getElementById('emergencyContact').value.trim(),
         address: document.getElementById('address').value.trim(),
         batch: document.getElementById('batch').value.trim(),
         batchName: document.getElementById('batchName').value.trim(),
