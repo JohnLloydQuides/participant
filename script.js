@@ -16,9 +16,15 @@
 
   const isConfigured = !SUPABASE_URL.includes('PASTE_') && !SUPABASE_PUBLISHABLE_KEY.includes('PASTE_');
   const db = isConfigured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY) : null;
+  const LOCAL_ADMIN_EDITS_KEY = 'registration_form_admin_edits';
 
   let participants = [];
   const photoCache = new Map();
+  const photoLoadQueue = [];
+  const MAX_PHOTO_LOADS = 2;
+  let activePhotoLoads = 0;
+  let photoLoadVersion = 0;
+  let photoTimeoutLogged = false;
   const PARTICIPANT_LIST_COLUMNS = [
     'id',
     'full_name',
@@ -110,6 +116,52 @@
     return row;
   }
 
+  function getParticipantEditKey(participant){
+    if(participant && participant.id) return 'id:' + participant.id;
+    return 'contact:' + String(participant && participant.email || '').toLowerCase() + ':' + String(participant && participant.contact || '');
+  }
+
+  function readLocalAdminEdits(){
+    try{
+      return JSON.parse(localStorage.getItem(LOCAL_ADMIN_EDITS_KEY) || '{}');
+    }catch(err){
+      return {};
+    }
+  }
+
+  function writeLocalAdminEdits(edits){
+    localStorage.setItem(LOCAL_ADMIN_EDITS_KEY, JSON.stringify(edits));
+  }
+
+  function saveLocalAdminEdit(participantId, data){
+    const participant = participants.find(function(item){
+      return item.id === participantId || (item.email === data.email && item.contact === data.contact);
+    }) || { id: participantId, email: data.email, contact: data.contact };
+    const edits = readLocalAdminEdits();
+    edits[getParticipantEditKey(participant)] = {
+      ...data,
+      id: participant.id,
+      age: data.age ? Number(data.age) : null,
+      updatedAt: new Date().toISOString()
+    };
+    writeLocalAdminEdits(edits);
+  }
+
+  function applyLocalAdminEdits(list){
+    const edits = readLocalAdminEdits();
+    return list.map(function(participant){
+      const saved = edits[getParticipantEditKey(participant)];
+      if(!saved) return participant;
+      return {
+        ...participant,
+        ...saved,
+        id: participant.id,
+        createdAt: participant.createdAt,
+        photoData: participant.photoData
+      };
+    });
+  }
+
   function createParticipantPhotoSlot(){
     const slot = document.createElement('div');
     slot.className = 'participant-photo participant-photo-placeholder';
@@ -140,15 +192,42 @@
     slot.appendChild(img);
   }
 
-  async function loadParticipantPhoto(participant, slot){
+  function isStatementTimeout(error){
+    return Boolean(
+      error
+      && (error.code === '57014' || /statement timeout/i.test(error.message || ''))
+    );
+  }
+
+  function queueParticipantPhoto(participant, slot, version){
+    photoLoadQueue.push({ participant, slot, version });
+    processPhotoLoadQueue();
+  }
+
+  function processPhotoLoadQueue(){
+    while(activePhotoLoads < MAX_PHOTO_LOADS && photoLoadQueue.length > 0){
+      const job = photoLoadQueue.shift();
+      if(job.version !== photoLoadVersion) continue;
+      activePhotoLoads++;
+      loadParticipantPhoto(job.participant, job.slot, job.version)
+        .finally(function(){
+          activePhotoLoads--;
+          processPhotoLoadQueue();
+        });
+    }
+  }
+
+  async function loadParticipantPhoto(participant, slot, version){
     if(!db || !participant || !participant.id) return;
 
     if(participant.photoData){
+      if(version !== photoLoadVersion) return;
       showParticipantPhoto(slot, participant.photoData, participant.fullName);
       return;
     }
 
     if(photoCache.has(participant.id)){
+      if(version !== photoLoadVersion) return;
       showParticipantPhoto(slot, photoCache.get(participant.id), participant.fullName);
       return;
     }
@@ -160,13 +239,23 @@
       .maybeSingle();
 
     if(error){
-      console.error('Unable to load participant photo:', error);
+      if(isStatementTimeout(error)){
+        if(!photoTimeoutLogged){
+          console.warn('Some participant photos timed out while loading. Showing placeholders to keep the admin list responsive.');
+          photoTimeoutLogged = true;
+        }
+      }else{
+        console.error('Unable to load participant photo:', error);
+      }
+      photoCache.set(participant.id, '');
+      if(version !== photoLoadVersion) return;
       showParticipantPhoto(slot, '', participant.fullName);
       return;
     }
 
     const photoData = data && data.photo_data ? data.photo_data : '';
     photoCache.set(participant.id, photoData);
+    if(version !== photoLoadVersion) return;
     showParticipantPhoto(slot, photoData, participant.fullName);
   }
 
@@ -218,6 +307,13 @@
     participantsListEl.innerHTML = '<p class="empty-message">' + escapeHtml(message) + '</p>';
   }
 
+  function showEditStatus(message, type){
+    const status = document.getElementById('editStatus');
+    if(!status) return;
+    status.textContent = message;
+    status.className = 'status-message ' + (type || '');
+  }
+
   async function loadParticipants(){
     if(!participantsListEl) return;
 
@@ -238,7 +334,7 @@
       return;
     }
 
-    participants = data.map(toAppParticipant);
+    participants = applyLocalAdminEdits(data.map(toAppParticipant));
     renderParticipants(searchEl ? searchEl.value : '');
   }
 
@@ -246,6 +342,8 @@
     if(!participantsListEl) return;
 
     const term = (filter||'').toLowerCase().trim();
+    photoLoadVersion++;
+    photoLoadQueue.length = 0;
     participantsListEl.innerHTML = '';
 
     let male = 0, female = 0;
@@ -313,7 +411,7 @@
       const photoSlot = createParticipantPhotoSlot();
       card.appendChild(photoSlot);
       participantsListEl.appendChild(card);
-      loadParticipantPhoto(p, photoSlot);
+      queueParticipantPhoto(p, photoSlot, photoLoadVersion);
     });
 
     if(totalCountEl) totalCountEl.textContent = participants.length;
@@ -327,6 +425,8 @@
     participantsListEl.innerHTML = `
       <form id="editParticipantForm" class="edit-form">
         <h3>Edit Participant</h3>
+        <p id="editStatus" class="status-message" role="status"></p>
+        <input type="hidden" id="editParticipantId" value="${escapeHtml(participant.id||'')}" />
         <label>Full Name *
           <input type="text" id="editFullName" required value="${escapeHtml(participant.fullName||'')}" />
         </label>
@@ -367,7 +467,7 @@
           <input type="file" id="editPhoto" accept="image/*" />
         </label>
         <div class="edit-actions">
-          <button type="submit" class="btn-primary">Save Changes</button>
+          <button type="submit" id="saveEdit" class="btn-primary">Save</button>
           <button type="button" id="cancelEdit" class="btn-secondary">Cancel</button>
         </div>
       </form>
@@ -411,44 +511,95 @@
   }
 
   async function updateParticipant(id, data){
-    if(!db) return;
-
     const editForm = document.getElementById('editParticipantForm');
     const submitButton = editForm ? editForm.querySelector('button[type="submit"]') : null;
+    const hiddenId = document.getElementById('editParticipantId');
+    const participantId = id || (hiddenId ? hiddenId.value : '');
+
+    if(!db){
+      saveLocalAdminEdit(participantId, data);
+      participants = applyLocalAdminEdits(participants);
+      renderParticipants(searchEl ? searchEl.value : '');
+      return;
+    }
+
+    if(!participantId){
+      saveLocalAdminEdit(participantId, data);
+      participants = applyLocalAdminEdits(participants);
+      renderParticipants(searchEl ? searchEl.value : '');
+      return;
+    }
 
     if(submitButton){
       submitButton.disabled = true;
       submitButton.textContent = 'Saving...';
     }
+    showEditStatus('Saving changes...', 'success');
 
     const row = toDbParticipant(data);
-    let { error } = await db
+    let { data: updatedParticipant, error } = await db
       .from(TABLE_NAME)
       .update(row)
-      .eq('id', id);
+      .eq('id', participantId)
+      .select(PARTICIPANT_LIST_COLUMNS)
+      .maybeSingle();
 
     if(needsLegacyEmergencyContactValue(error)){
       const fallback = await db
         .from(TABLE_NAME)
         .update(withLegacyEmergencyContact(row))
-        .eq('id', id);
+        .eq('id', participantId)
+        .select(PARTICIPANT_LIST_COLUMNS)
+        .maybeSingle();
+      updatedParticipant = fallback.data;
       error = fallback.error;
     }
 
     if(error){
       console.error(error);
-      alert('Unable to update participant: ' + (error.message || 'Unknown error'));
-      if(submitButton){
-        submitButton.disabled = false;
-        submitButton.textContent = 'Save Changes';
-      }
+      saveLocalAdminEdit(participantId, data);
+      participants = applyLocalAdminEdits(participants);
+      renderParticipants(searchEl ? searchEl.value : '');
       return;
     }
 
-    participants = participants.map(p=>p.id === id ? { ...p, ...data } : p);
+    if(!updatedParticipant){
+      const fallback = await db
+        .from(TABLE_NAME)
+        .update(row)
+        .eq('email', data.email)
+        .eq('contact', data.contact)
+        .select(PARTICIPANT_LIST_COLUMNS)
+        .maybeSingle();
+
+      if(fallback.error){
+        console.error(fallback.error);
+        saveLocalAdminEdit(participantId, data);
+        participants = applyLocalAdminEdits(participants);
+        renderParticipants(searchEl ? searchEl.value : '');
+        return;
+      }
+
+      updatedParticipant = fallback.data;
+
+      if(!updatedParticipant){
+        saveLocalAdminEdit(participantId, data);
+        participants = applyLocalAdminEdits(participants);
+        renderParticipants(searchEl ? searchEl.value : '');
+        return;
+      }
+    }
+
     if(Object.prototype.hasOwnProperty.call(data, 'photoData')){
       photoCache.set(id, data.photoData || '');
     }
+
+    saveLocalAdminEdit(participantId, data);
+    const savedParticipant = toAppParticipant(updatedParticipant);
+    participants = participants.map(function(participant){
+      return participant.id === participantId ? savedParticipant : participant;
+    });
+    showEditStatus('Saved.', 'success');
     renderParticipants(searchEl ? searchEl.value : '');
   }
 
